@@ -23,23 +23,37 @@ export default function CodePlayground() {
   const [executionResult, setExecutionResult] = useState<ExecutionResult | null>(null);
   const { toast } = useToast();
 
-  // Simulation de génération de code
   const handleGenerate = async (prompt: string) => {
     setIsGenerating(true);
-    
-    // Simulation d'appel API
-    setTimeout(() => {
-      const sampleCode = generateSampleCode(prompt, language);
-      setCode(sampleCode);
-      setIsGenerating(false);
-      toast({
-        title: "Code généré !",
-        description: `Code ${language} créé avec succès`,
+    try {
+      const response = await fetch("http://localhost:5000/generate", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ prompt, language }),
       });
-    }, 2000);
+      const data = await response.json();
+      if (response.ok) {
+        setCode(data.code);
+        toast({
+          title: "Code généré !",
+          description: `Code ${language} créé avec succès`,
+        });
+      } else {
+        throw new Error(data.error || "Erreur lors de la génération du code");
+      }
+    } catch (error) {
+      toast({
+        title: "Erreur",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
-  // Simulation d'exécution
   const handleExecute = async () => {
     if (!code.trim()) {
       toast({
@@ -52,24 +66,33 @@ export default function CodePlayground() {
 
     setIsExecuting(true);
     setShowConsole(true);
-    
-    // Simulation d'exécution
-    setTimeout(() => {
-      const result: ExecutionResult = {
-        stdout: `Exécution du code ${language} réussie!\nRésultat: Hello, World!`,
-        stderr: "",
-        exitCode: 0,
-        executionTime: Math.floor(Math.random() * 1000) + 100,
-        timestamp: new Date()
-      };
-      
-      setExecutionResult(result);
-      setIsExecuting(false);
-      toast({
-        title: "Code exécuté",
-        description: "L'exécution s'est terminée avec succès",
+    try {
+      const response = await fetch("http://localhost:5000/run", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ code, language }),
       });
-    }, 1500);
+      const data = await response.json();
+       if (response.ok) {
+        setExecutionResult({ ...data, timestamp: new Date(data.timestamp) });
+        toast({
+          title: "Code exécuté",
+          description: "L'exécution s'est terminée",
+        });
+      } else {
+        throw new Error(data.error || "Erreur lors de l'exécution du code");
+      }
+    } catch (error) {
+      toast({
+        title: "Erreur",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsExecuting(false);
+    }
   };
 
   const handleModify = () => {
@@ -178,51 +201,4 @@ export default function CodePlayground() {
       </div>
     </div>
   );
-}
-
-// Fonction utilitaire pour générer du code d'exemple
-function generateSampleCode(prompt: string, language: string): string {
-  const samples: Record<string, string> = {
-    python: `# Code généré basé sur: "${prompt}"
-def main():
-    print("Hello, World!")
-    result = calculate_something()
-    return result
-
-def calculate_something():
-    # Votre logique ici
-    return 42
-
-if __name__ == "__main__":
-    main()`,
-    
-    javascript: `// Code généré basé sur: "${prompt}"
-function main() {
-    console.log("Hello, World!");
-    const result = calculateSomething();
-    return result;
-}
-
-function calculateSomething() {
-    // Votre logique ici
-    return 42;
-}
-
-main();`,
-    
-    bash: `#!/bin/bash
-# Code généré basé sur: "${prompt}"
-
-echo "Hello, World!"
-
-calculate_something() {
-    # Votre logique ici
-    echo 42
-}
-
-result=$(calculate_something)
-echo "Résultat: $result"`
-  };
-
-  return samples[language] || samples.python;
 }
