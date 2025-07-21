@@ -1,9 +1,8 @@
 import { useState } from "react";
-import { PromptInput } from "@/components/PromptInput";
+import { ChatInterface } from "@/components/ChatInterface";
 import { CodeEditor } from "@/components/CodeEditor";
 import { LanguageSelector } from "@/components/LanguageSelector";
 import { ResultConsole } from "@/components/ResultConsole";
-import { ActionButtons } from "@/components/ActionButtons";
 import { useToast } from "@/hooks/use-toast";
 
 interface ExecutionResult {
@@ -20,6 +19,7 @@ export default function CodePlayground() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [isExecuting, setIsExecuting] = useState(false);
   const [isEditable, setIsEditable] = useState(false);
+  const [showConsole, setShowConsole] = useState(false);
   const [executionResult, setExecutionResult] = useState<ExecutionResult | null>(null);
   const { toast } = useToast();
 
@@ -51,6 +51,7 @@ export default function CodePlayground() {
     }
 
     setIsExecuting(true);
+    setShowConsole(true);
     
     // Simulation d'exécution
     setTimeout(() => {
@@ -83,6 +84,7 @@ export default function CodePlayground() {
     setCode("");
     setExecutionResult(null);
     setIsEditable(false);
+    setShowConsole(false);
     toast({
       title: "Réinitialisé",
       description: "L'espace de travail a été vidé",
@@ -107,58 +109,37 @@ export default function CodePlayground() {
 
   const handleClearConsole = () => {
     setExecutionResult(null);
+    setShowConsole(false);
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b border-border/30 bg-card/50">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="bg-gradient-tech rounded-lg p-2">
-                <span className="text-white font-bold">AI</span>
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold bg-gradient-tech bg-clip-text text-transparent">
-                  Code Playground
-                </h1>
-                <p className="text-sm text-muted-foreground">
-                  Générez, modifiez et exécutez du code avec l'IA
-                </p>
-              </div>
-            </div>
-          </div>
+    <div className="min-h-screen bg-background flex">
+      {/* Panel gauche - Chat */}
+      <div className="w-1/2 border-r border-border/30 flex flex-col">
+        <div className="flex-1">
+          <ChatInterface
+            onGenerate={handleGenerate}
+            onModify={handleModify}
+            onOptimize={handleOptimize}
+            onReset={handleReset}
+            onSettings={handleSettings}
+            hasCode={!!code}
+            isLoading={isGenerating}
+          />
         </div>
-      </header>
+        
+        <div className="flex-shrink-0 p-4 border-t border-border/30 bg-card/30">
+          <LanguageSelector 
+            value={language} 
+            onValueChange={setLanguage} 
+          />
+        </div>
+      </div>
 
-      {/* Main Content */}
-      <main className="container mx-auto px-4 py-6">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Left Panel - Controls */}
-          <div className="space-y-6">
-            <PromptInput 
-              onGenerate={handleGenerate} 
-              isLoading={isGenerating} 
-            />
-            
-            <LanguageSelector 
-              value={language} 
-              onValueChange={setLanguage} 
-            />
-            
-            <ActionButtons
-              onModify={handleModify}
-              onReset={handleReset}
-              onOptimize={handleOptimize}
-              onSettings={handleSettings}
-              hasCode={!!code}
-              isLoading={isGenerating || isExecuting}
-            />
-          </div>
-
-          {/* Right Panel - Code and Results */}
-          <div className="space-y-6">
+      {/* Panel droit - Code et Console */}
+      <div className="w-1/2 flex flex-col">
+        <div className={`${showConsole ? 'flex-1' : 'h-full'} overflow-hidden`}>
+          <div className="h-full p-4">
             <CodeEditor
               code={code}
               language={language}
@@ -166,17 +147,35 @@ export default function CodePlayground() {
               isEditable={isEditable}
               onToggleEdit={() => setIsEditable(!isEditable)}
             />
-            
-            <ResultConsole
-              result={executionResult}
-              isExecuting={isExecuting}
-              onClear={handleClearConsole}
-              onExecute={handleExecute}
-              language={language}
-            />
           </div>
         </div>
-      </main>
+        
+        {showConsole && (
+          <div className="flex-1 border-t border-border/30">
+            <div className="h-full p-4">
+              <ResultConsole
+                result={executionResult}
+                isExecuting={isExecuting}
+                onClear={handleClearConsole}
+                onExecute={handleExecute}
+                language={language}
+              />
+            </div>
+          </div>
+        )}
+        
+        {!showConsole && (
+          <div className="flex-shrink-0 p-4 border-t border-border/30 bg-card/30">
+            <button 
+              onClick={handleExecute}
+              disabled={!code.trim() || isExecuting}
+              className="w-full bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded-md font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isExecuting ? 'Exécution...' : 'Exécuter le code'}
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
