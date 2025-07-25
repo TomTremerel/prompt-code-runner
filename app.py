@@ -1,28 +1,30 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from docker_runner import run_in_docker, LANGUAGES
-from code_gen import generate_code
+from code_gen import generate_chat_response # Mise à jour de l'import
 
 app = Flask(__name__)
 CORS(app)
 
-@app.route('/generate', methods=['POST'])
-def generate():
+@app.route('/chat', methods=['POST'])
+def chat():
     data = request.json
-    prompt = data.get('prompt')
+    history = data.get('history', [])
+    code_context = data.get('code_context', '')
     language = data.get('language')
 
-    if not prompt or not language:
-        return jsonify({"error": "Prompt and language are required"}), 400
+    if not history or not language:
+        return jsonify({"error": "L'historique et le langage sont requis"}), 400
 
-    if language not in LANGUAGES:
-        return jsonify({"error": "Language not supported"}), 400
+    if not history[-1]['content']:
+         return jsonify({"error": "Le message de l'utilisateur est vide"}), 400
 
     try:
-        code = generate_code(prompt, language=language)
-        return jsonify({"code": code})
+        response = generate_chat_response(history, code_context, language)
+        return jsonify(response)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
 
 @app.route('/run', methods=['POST'])
 def run():
@@ -30,8 +32,8 @@ def run():
     code = data.get('code')
     language = data.get('language')
 
-    if not code or not language:
-        return jsonify({"error": "Code and language are required"}), 400
+    if not all([code, language]):
+        return jsonify({"error": "Le code et le langage sont requis"}), 400
 
     result = run_in_docker(code, language)
     return jsonify(result)
